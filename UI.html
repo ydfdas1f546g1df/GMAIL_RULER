@@ -1,0 +1,19 @@
+<!-- Page.html -->
+<html>
+<head>
+    <script>
+        function addRule() {
+            var ruleData = {
+            };
+            google.script.run.withSuccessHandler(function() {
+                window.location.reload(); // Reload to see new rules
+            }).addNewRule(ruleData);
+        }
+    </script>
+</head>
+<body>
+    <h1>Create New Rule</h1>
+
+    <button onclick="addRule()">Add Rule</button>
+</body>
+</html>
