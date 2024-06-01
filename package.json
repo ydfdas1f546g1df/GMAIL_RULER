@@ -1,5 +1,6 @@
 {
   "devDependencies": {
-    "@types/google-apps-script": "^1.0.83"
+    "@types/google-apps-script": "^1.0.83",
+    "typescript": "^5.4.5"
   }
 }

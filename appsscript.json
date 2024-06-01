@@ -5,19 +5,25 @@
   "exceptionLogging": "STACKDRIVER",
   "oauthScopes": [
     "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/script.scriptapp"
+    "https://www.googleapis.com/auth/script.scriptapp",
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/script.storage",
+    "https://www.googleapis.com/auth/gmail.labels",
+    "https://www.googleapis.com/auth/gmail.modify"
   ],
   "runtimeVersion": "V8",
   "gmail": {
     "name": "GMAIL RULE CREATOR",
     "logoUrl": "https://www.gstatic.com/images/branding/googleg/1x/googleg_standard_color_64dp.png",
+    "primaryColor": "#00008B",
+    "openLinkUrlPrefixes": ["https://developers.google.com/gmail"],
+    "version": "TRUSTED_TESTER_V2",
     "contextualTriggers": [{
-      "unconditional": {
-      },
+      "unconditional": {},
       "onTriggerFunction": "loadAddOn"
     }],
-    "primaryColor": "#146b2e",
-    "openLinkUrlPrefixes": ["https://developers.google.com/gmail"],
-    "version": "TRUSTED_TESTER_V2"
+    "homepageTrigger": {
+      "runFunction": "loadAddOn"
+    }
   }
 }
