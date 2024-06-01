@@ -1,6 +1,19 @@
-<!-- 
-Do clasp commands with descriptions
--->
+# Getting Started
+https://script.google.com
+
+Login to google and create a new project
+<br>Go To Project Settings Copy the Script ID and put it into the [.clasp.json](.clasp.json) file
+
+then run the following commands
+```bash
+npm install -g @google/clasp 
+npm install typescript --save-dev
+npm install @types/google-apps-script --save-dev
+clasp login
+clasp push
+```
+### Now you have a working GMAIL RULER
+# Commands
 Login to your Google account
 ```bash
 clasp login
