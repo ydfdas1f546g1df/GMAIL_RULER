@@ -178,8 +178,7 @@ function getFormattedRulesWidgets(): GoogleAppsScript.Card_Service.Widget[] {
     return widgets;
 }
 
-
-function showAddRuleForm() {
+function buildAddRuleForm(action: string | null): GoogleAppsScript.Card_Service.Card {
     let cardBuilder = CardService.newCardBuilder();
     cardBuilder.setHeader(CardService.newCardHeader().setTitle("Create New Rule"));
 
@@ -194,22 +193,18 @@ function showAddRuleForm() {
     section.addWidget(CardService.newTextInput()
         .setMultiline(true)
         .setFieldName("ruleDescription")
-        .setTitle("Rule Description"))
-    ;
+        .setTitle("Rule Description"));
 
     // Dropdown for Criteria Field
-    section.addWidget(CardService.newSelectionInput()
+    let criteriaFieldDropdown = CardService.newSelectionInput()
         .setType(CardService.SelectionInputType.DROPDOWN)
         .setTitle("Criteria Field")
-        .setFieldName("criteriaField")
-        .addItem("From", "from", false)
-        .addItem("Subject Contains", "subjectContains", false)
-        .addItem("Body Contains", "bodyContains", false)
-        .addItem("Has Attachment", "hasAttachment", false)
-        .addItem("Attachment Name", "attachmentName", false)
-        .addItem("To", "to", false)
-        .addItem("CC", "cc", false)
-        .addItem("BCC", "bcc", false));
+        .setFieldName("criteriaField");
+    for (const [key, value] of Object.entries(CriteriaField)) {
+        criteriaFieldDropdown.addItem(key, value, value === CriteriaField.FROM);
+    }
+    section.addWidget(criteriaFieldDropdown);
+
 
     // Text input for Criteria Value
     section.addWidget(CardService.newTextInput()
@@ -217,18 +212,33 @@ function showAddRuleForm() {
         .setTitle("Criteria Value"));
 
     // Dropdown for Actions
-    section.addWidget(CardService.newSelectionInput()
+    let actionDropdown = CardService.newSelectionInput()
         .setType(CardService.SelectionInputType.DROPDOWN)
         .setTitle("Action")
         .setFieldName("action")
-        .addItem("Label", "label", false)
-        .addItem("Delete", "delete", false)
-        .addItem("Mark Read", "markRead", false));
+        .setOnChangeAction(CardService.newAction().setFunctionName("handleActionChange"));
+    for (const [key, value] of Object.entries(Action)) {
+        actionDropdown.addItem(key, value, value === action);
+    }
 
-    // Text input for Action Value
-    section.addWidget(CardService.newTextInput()
-        .setFieldName("actionValue")
-        .setTitle("Action Value"));
+    section.addWidget(actionDropdown);
+
+    // Conditional input for Action Value based on selected action
+    if (action === "label") {
+        const labels = GmailApp.getUserLabels();
+        const labelDropdown = CardService.newSelectionInput()
+            .setType(CardService.SelectionInputType.DROPDOWN)
+            .setTitle("Label")
+            .setFieldName("actionValue");
+        labels.forEach(label => {
+            labelDropdown.addItem(label.getName(), label.getName(), false);
+        });
+        section.addWidget(labelDropdown);
+    } else {
+        section.addWidget(CardService.newTextInput()
+            .setFieldName("actionValue")
+            .setTitle("Action Value"));
+    }
 
     // Checkbox for Enabled
     section.addWidget(CardService.newSelectionInput()
@@ -252,6 +262,16 @@ function showAddRuleForm() {
     cardBuilder.addSection(section);
 
     return cardBuilder.build();
+}
+
+function showAddRuleForm() {
+
+    return buildAddRuleForm(null);
+}
+
+function handleActionChange(e: any): GoogleAppsScript.Card_Service.Card {
+    const action = e.formInput.action;
+    return buildAddRuleForm(action);
 }
 
 function handleCreateRule(e: any): GoogleAppsScript.Card_Service.Card {
@@ -533,25 +553,54 @@ function applyRules(): void {
     console.log('Finished applying rules.');
 }
 
+// Function to convert wildcard patterns to regex
+function wildcardToRegex(pattern: string): RegExp {
+    const regexString = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+    return new RegExp(`^${regexString}$`, 'i');  // 'i' for case-insensitive matching
+}
+
 function matchesRule(message: GoogleAppsScript.Gmail.GmailMessage, rule: Rule): boolean {
     console.log(`Checking if message with ID ${message.getId()} matches rule ${rule.id}`);
     switch (rule.criteria.field) {
         case CriteriaField.FROM:
-            const fromMatch = message.getFrom().includes(rule.criteria.value);
-            console.log(`Criteria FROM matched: ${fromMatch} ${message.getFrom()}`);
-            return fromMatch;
+            let Match1 = false;
+            for (const from of message.getFrom()) {
+                Match1 = wildcardToRegex(rule.criteria.value).test(from);
+            }
+
+            console.log(`Criteria FROM matched: ${Match1} ${message.getFrom()}`);
+            return Match1;
+
+
         case CriteriaField.TO:
-            const toMatch = message.getTo().includes(rule.criteria.value);
-            console.log(`Criteria TO matched: ${toMatch} ${message.getTo()}`);
-            return toMatch;
+            let Match2 = false;
+            for (const from of message.getTo()) {
+                Match2 = wildcardToRegex(rule.criteria.value).test(from);
+            }
+
+            console.log(`Criteria FROM matched: ${Match2} ${message.getTo()}`);
+            return Match2;
+
+
         case CriteriaField.CC:
-            const ccMatch = message.getCc().includes(rule.criteria.value);
-            console.log(`Criteria CC matched: ${ccMatch} ${message.getCc()}`);
-            return ccMatch;
+            let Match3 = false;
+            for (const from of message.getCc()) {
+                Match3 = wildcardToRegex(rule.criteria.value).test(from);
+            }
+
+            console.log(`Criteria FROM matched: ${Match3} ${message.getCc()}`);
+            return Match3;
+
+
         case CriteriaField.BCC:
-            const bccMatch = message.getBcc().includes(rule.criteria.value);
-            console.log(`Criteria BCC matched: ${bccMatch} ${message.getBcc()}`);
-            return bccMatch;
+            let Match4 = false;
+            for (const from of message.getBcc()) {
+                Match4 = wildcardToRegex(rule.criteria.value).test(from);
+            }
+
+            console.log(`Criteria FROM matched: ${Match4} ${message.getBcc()}`);
+            return Match4;
+
         default:
             console.log('Criteria field not recognized:', rule.criteria.field);
             return false;
@@ -578,6 +627,7 @@ function executeRuleAction(message: GoogleAppsScript.Gmail.GmailMessage, rule: R
 
 
             label.addToThread(message.getThread());
+            message.getThread().moveToArchive();
             console.log(`Label '${rule.value}' added to thread with ID ${message.getThread().getId()}`);
             break;
         case Action.DELETE:
@@ -593,7 +643,6 @@ function executeRuleAction(message: GoogleAppsScript.Gmail.GmailMessage, rule: R
             break;
     }
 }
-
 
 
 function addTrigger(): void {
@@ -640,6 +689,7 @@ function setSettings(settings: Settings): void {
     const scriptProperties = PropertiesService.getScriptProperties();
     scriptProperties.setProperty('settings', JSON.stringify(settings));
 }
+
 function removeTrigger(): void {
     const triggers = ScriptApp.getProjectTriggers();
     for (const trigger of triggers) {
@@ -696,7 +746,7 @@ function handleSaveSettings(e: any): GoogleAppsScript.Card_Service.Card {
     const mostRecentMails = parseInt(formInputs.mostRecentMails) || 50; // Default to 50 if parsing fails
 
     // Ensure that provided settings are logical
-    if (![1,2,4,6,8,12].includes(autoApplyIntervalHours) || mostRecentMails <= 0) {
+    if (![1, 2, 4, 6, 8, 12].includes(autoApplyIntervalHours) || mostRecentMails <= 0) {
         return createErrorCard("Please enter 1, 2, 4, 6, 8, 12 for interval and positive number for mail count.");
     }
 
@@ -717,7 +767,7 @@ function handleSaveSettings(e: any): GoogleAppsScript.Card_Service.Card {
     addTrigger();
 
     // Return a card indicating success and providing a navigation option
-    let returnCard:GoogleAppsScript.Card_Service.Card = createSuccessCard().build();
+    let returnCard: GoogleAppsScript.Card_Service.Card = createSuccessCard().build();
     return returnCard;
 }
 
@@ -764,6 +814,7 @@ function isTriggerCreated(): boolean {
     }
     return false;
 }
+
 function handleRemoveTrigger(e: any): GoogleAppsScript.Card_Service.Card {
     removeTrigger();
 
