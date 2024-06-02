@@ -553,54 +553,26 @@ function applyRules(): void {
     console.log('Finished applying rules.');
 }
 
-// Function to convert wildcard patterns to regex
-function wildcardToRegex(pattern: string): RegExp {
-    const regexString = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-    return new RegExp(`^${regexString}$`, 'i');  // 'i' for case-insensitive matching
-}
 
 function matchesRule(message: GoogleAppsScript.Gmail.GmailMessage, rule: Rule): boolean {
     console.log(`Checking if message with ID ${message.getId()} matches rule ${rule.id}`);
     switch (rule.criteria.field) {
         case CriteriaField.FROM:
-            let Match1 = false;
-            for (const from of message.getFrom()) {
-                Match1 = wildcardToRegex(rule.criteria.value).test(from);
-            }
-
-            console.log(`Criteria FROM matched: ${Match1} ${message.getFrom()}`);
-            return Match1;
-
-
+            const fromMatch = message.getFrom().includes(rule.criteria.value);
+            console.log(`Criteria FROM matched: ${fromMatch} ${message.getFrom()}`);
+            return fromMatch;
         case CriteriaField.TO:
-            let Match2 = false;
-            for (const from of message.getTo()) {
-                Match2 = wildcardToRegex(rule.criteria.value).test(from);
-            }
-
-            console.log(`Criteria FROM matched: ${Match2} ${message.getTo()}`);
-            return Match2;
-
-
+            const toMatch = message.getTo().includes(rule.criteria.value);
+            console.log(`Criteria TO matched: ${toMatch} ${message.getTo()}`);
+            return toMatch;
         case CriteriaField.CC:
-            let Match3 = false;
-            for (const from of message.getCc()) {
-                Match3 = wildcardToRegex(rule.criteria.value).test(from);
-            }
-
-            console.log(`Criteria FROM matched: ${Match3} ${message.getCc()}`);
-            return Match3;
-
-
+            const ccMatch = message.getCc().includes(rule.criteria.value);
+            console.log(`Criteria CC matched: ${ccMatch} ${message.getCc()}`);
+            return ccMatch;
         case CriteriaField.BCC:
-            let Match4 = false;
-            for (const from of message.getBcc()) {
-                Match4 = wildcardToRegex(rule.criteria.value).test(from);
-            }
-
-            console.log(`Criteria FROM matched: ${Match4} ${message.getBcc()}`);
-            return Match4;
-
+            const bccMatch = message.getBcc().includes(rule.criteria.value);
+            console.log(`Criteria BCC matched: ${bccMatch} ${message.getBcc()}`);
+            return bccMatch;
         default:
             console.log('Criteria field not recognized:', rule.criteria.field);
             return false;
