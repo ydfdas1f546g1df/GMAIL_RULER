@@ -169,8 +169,8 @@ function getFormattedRulesWidgets(): GoogleAppsScript.Card_Service.Widget[] {
         const textColor = rule.enabled ? "#00FF00" : "#FF0000"; // Green for enabled, red for disabled
         const widget = CardService.newTextButton()
             .setText(`${rule.name} (Enabled: ${rule.enabled ? 'Yes' : 'No'})`)
-            .setTextButtonStyle(CardService.TextButtonStyle.TEXT)
-            .setBackgroundColor(textColor)
+            .setTextButtonStyle(CardService.TextButtonStyle.FILLED) // Ensure this is valid in your context
+            .setBackgroundColor(textColor) // SetBackgroundColor might not be valid; usually not supported in CardService
             .setOnClickAction(CardService.newAction().setFunctionName("showEditRuleForm").setParameters({ruleId: rule.id.toString()}));
         widgets.push(widget);
     });
@@ -515,36 +515,136 @@ function loadAddOn() {
 }
 
 
+// function applyRules(): void {
+//     const settings = getSettings();
+//     const rules = getRules();
+//
+//     console.log('Applying rules...');
+//     console.log('Settings:', JSON.stringify(settings));
+//     console.log('Number of rules:', rules.length);
+//
+//     if (rules.length === 0) {
+//         console.log('No rules to apply.');
+//         return;
+//     }
+//
+//     const threads = GmailApp.getInboxThreads(0, settings.mostRecentMails);
+//     console.log('Number of threads to process:', threads.length);
+//
+//     threads.forEach(thread => {
+//         console.log('Processing thread with ID:', thread.getId());
+//         const messages = thread.getMessages();
+//         console.log('Number of messages in thread:', messages.length);
+//
+//         messages.forEach(message => {
+//             console.log('Processing message with ID:', message.getId());
+//             rules.forEach(rule => {
+//                 console.log('Evaluating rule:', JSON.stringify(rule));
+//                 if (rule.enabled && matchesRule(message, rule)) {
+//                     console.log('Rule matched. Executing action...');
+//                     executeRuleAction(message, rule);
+//                 } else {
+//                     console.log('Rule did not match or is not enabled.');
+//                 }
+//             });
+//         });
+//     });
+//
+//     console.log('Finished applying rules.');
+// }
+//
+//
+// function matchesRule(message: GoogleAppsScript.Gmail.GmailMessage, rule: Rule): boolean {
+//     console.log(`Checking if message with ID ${message.getId()} matches rule ${rule.id}`);
+//     switch (rule.criteria.field) {
+//         case CriteriaField.FROM:
+//             const fromMatch = message.getFrom().includes(rule.criteria.value);
+//             console.log(`Criteria FROM matched: ${fromMatch} ${message.getFrom()}`);
+//             return fromMatch;
+//         case CriteriaField.TO:
+//             const toMatch = message.getTo().includes(rule.criteria.value);
+//             console.log(`Criteria TO matched: ${toMatch} ${message.getTo()}`);
+//             return toMatch;
+//         case CriteriaField.CC:
+//             const ccMatch = message.getCc().includes(rule.criteria.value);
+//             console.log(`Criteria CC matched: ${ccMatch} ${message.getCc()}`);
+//             return ccMatch;
+//         case CriteriaField.BCC:
+//             const bccMatch = message.getBcc().includes(rule.criteria.value);
+//             console.log(`Criteria BCC matched: ${bccMatch} ${message.getBcc()}`);
+//             return bccMatch;
+//         default:
+//             console.log('Criteria field not recognized:', rule.criteria.field);
+//             return false;
+//     }
+// }
+//
+// function executeRuleAction(message: GoogleAppsScript.Gmail.GmailMessage, rule: Rule): void {
+//     console.log(`Executing action for message with ID ${message.getId()} based on rule ${rule.id}`);
+//     switch (rule.action) {
+//         case Action.LABEL:
+//             const labelName = rule.value;
+//             let label = GmailApp.getUserLabelByName(labelName);
+//             if (!label) {
+//                 try {
+//                     label = GmailApp.createLabel(labelName);
+//                     console.log(`Label '${labelName}' created.`);
+//                 } catch (error) {
+//                     console.error(`Failed to create label '${labelName}':`, error);
+//                     return;
+//                 }
+//             } else {
+//                 console.log(`Label '${labelName}' found.`);
+//             }
+//
+//
+//             label.addToThread(message.getThread());
+//             message.getThread().moveToArchive();
+//             console.log(`Label '${rule.value}' added to thread with ID ${message.getThread().getId()}`);
+//             break;
+//         case Action.DELETE:
+//             message.moveToTrash();
+//             console.log(`Message with ID ${message.getId()} moved to trash`);
+//             break;
+//         case Action.MARK_READ:
+//             message.markRead();
+//             console.log(`Message with ID ${message.getId()} marked as read`);
+//             break;
+//         default:
+//             console.log('Action not recognized:', rule.action);
+//             break;
+//     }
+// }
+
 function applyRules(): void {
     const settings = getSettings();
     const rules = getRules();
 
     console.log('Applying rules...');
-    console.log('Settings:', JSON.stringify(settings));
-    console.log('Number of rules:', rules.length);
-
     if (rules.length === 0) {
         console.log('No rules to apply.');
         return;
     }
 
     const threads = GmailApp.getInboxThreads(0, settings.mostRecentMails);
+    if (threads.length === 0) {
+        console.log('No threads to process.');
+        return;
+    }
+
+    // Log only the count of threads to reduce log clutter
     console.log('Number of threads to process:', threads.length);
 
-    threads.forEach(thread => {
-        console.log('Processing thread with ID:', thread.getId());
-        const messages = thread.getMessages();
-        console.log('Number of messages in thread:', messages.length);
+    // Create a mapping of rules for quick access
+    const rulesMap = new Map<number, Rule>(rules.map(rule => [rule.id, rule]));
 
+    // Process all threads in batches
+    threads.forEach(thread => {
+        const messages = thread.getMessages();
         messages.forEach(message => {
-            console.log('Processing message with ID:', message.getId());
             rules.forEach(rule => {
-                console.log('Evaluating rule:', JSON.stringify(rule));
                 if (rule.enabled && matchesRule(message, rule)) {
-                    console.log('Rule matched. Executing action...');
-                    executeRuleAction(message, rule);
-                } else {
-                    console.log('Rule did not match or is not enabled.');
+                    executeRuleAction(thread, message, rule);
                 }
             });
         });
@@ -553,69 +653,53 @@ function applyRules(): void {
     console.log('Finished applying rules.');
 }
 
-
 function matchesRule(message: GoogleAppsScript.Gmail.GmailMessage, rule: Rule): boolean {
-    console.log(`Checking if message with ID ${message.getId()} matches rule ${rule.id}`);
+    // Simplified logging for clarity
     switch (rule.criteria.field) {
         case CriteriaField.FROM:
-            const fromMatch = message.getFrom().includes(rule.criteria.value);
-            console.log(`Criteria FROM matched: ${fromMatch} ${message.getFrom()}`);
-            return fromMatch;
+            return message.getFrom().includes(rule.criteria.value);
         case CriteriaField.TO:
-            const toMatch = message.getTo().includes(rule.criteria.value);
-            console.log(`Criteria TO matched: ${toMatch} ${message.getTo()}`);
-            return toMatch;
+            return message.getTo().includes(rule.criteria.value);
         case CriteriaField.CC:
-            const ccMatch = message.getCc().includes(rule.criteria.value);
-            console.log(`Criteria CC matched: ${ccMatch} ${message.getCc()}`);
-            return ccMatch;
+            return message.getCc().includes(rule.criteria.value);
         case CriteriaField.BCC:
-            const bccMatch = message.getBcc().includes(rule.criteria.value);
-            console.log(`Criteria BCC matched: ${bccMatch} ${message.getBcc()}`);
-            return bccMatch;
+            return message.getBcc().includes(rule.criteria.value);
+        case CriteriaField.SUBJECT:
+            return message.getSubject().includes(rule.criteria.value);
+        case CriteriaField.BODY:
+            return message.getBody().includes(rule.criteria.value);
+        case CriteriaField.ATTACHEMENT:
+            // Placeholder: Implement specific logic to check for attachments
+            return message.getAttachments().length > 0;
+        case CriteriaField.ATTACHEMENT_NAME:
+            // Placeholder: Check attachment names
+            return message.getAttachments().some(attachment => attachment.getName().includes(rule.criteria.value));
         default:
-            console.log('Criteria field not recognized:', rule.criteria.field);
+            console.error('Unrecognized criteria field:', rule.criteria.field);
             return false;
     }
 }
 
-function executeRuleAction(message: GoogleAppsScript.Gmail.GmailMessage, rule: Rule): void {
-    console.log(`Executing action for message with ID ${message.getId()} based on rule ${rule.id}`);
+function executeRuleAction(thread: GoogleAppsScript.Gmail.GmailThread, message: GoogleAppsScript.Gmail.GmailMessage, rule: Rule): void {
+    console.log(`Executing rule: ${rule.name} for message ID: ${message.getId()}`);
     switch (rule.action) {
         case Action.LABEL:
-            const labelName = rule.value;
-            let label = GmailApp.getUserLabelByName(labelName);
-            if (!label) {
-                try {
-                    label = GmailApp.createLabel(labelName);
-                    console.log(`Label '${labelName}' created.`);
-                } catch (error) {
-                    console.error(`Failed to create label '${labelName}':`, error);
-                    return;
-                }
-            } else {
-                console.log(`Label '${labelName}' found.`);
-            }
-
-
-            label.addToThread(message.getThread());
-            message.getThread().moveToArchive();
-            console.log(`Label '${rule.value}' added to thread with ID ${message.getThread().getId()}`);
+            let label = GmailApp.getUserLabelByName(rule.value);
+            if (!label) label = GmailApp.createLabel(rule.value);
+            label.addToThread(thread);
+            thread.moveToArchive();
             break;
         case Action.DELETE:
             message.moveToTrash();
-            console.log(`Message with ID ${message.getId()} moved to trash`);
             break;
         case Action.MARK_READ:
             message.markRead();
-            console.log(`Message with ID ${message.getId()} marked as read`);
             break;
         default:
-            console.log('Action not recognized:', rule.action);
+            console.error('Action not recognized:', rule.action);
             break;
     }
 }
-
 
 function addTrigger(): void {
     const settings = getSettings();
